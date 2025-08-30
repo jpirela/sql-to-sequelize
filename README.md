@@ -31,7 +31,6 @@ El script en Python debe:
   - Si es PK de texto, será `{ type: DataTypes.STRING, primaryKey: true }`.  
   - Los demás campos se mapean así:  
 
-+------------------------------------------------|--------------------+
 | Tipo SQL                                       | Tipo Sequelize     |
 |------------------------------------------------|--------------------|
 | `integer`, `bigint`, `smallint`, `serial`      | `DataTypes.INTEGER`|
@@ -41,7 +40,6 @@ El script en Python debe:
 | `timestamp`, `date`, `time`                    | `DataTypes.DATE`   |
 | `json`, `jsonb`                                | `DataTypes.JSON`   |
 | `uuid`                                         | `DataTypes.UUID`   |
-+------------------------------------------------|--------------------+
 
 - **Asociaciones (`associate`)**:
   - `belongsTo`: si la tabla contiene una clave foránea.  
@@ -470,6 +468,8 @@ await newUser.addUserRole(adminRole);
 3. **Asociaciones Automáticas**: Todas las relaciones (1:1, 1:N, N:N) se configuran automáticamente según el análisis del dump SQL.
 
 4. **Timestamps**: Si se detectan campos `created_at` y `updated_at`, se habilita automáticamente `timestamps: true`.
+
+5. **Instalación**: Se deben copiar en la raiz del proyecto las carpetas `config` y `api`.
 
 ---
 
