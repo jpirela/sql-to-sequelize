@@ -41,31 +41,49 @@ def confirm_engine(engine: str) -> str:
 # =============================
 
 def parse_create_table(sql_content: str, engine: str):
-    tables = re.findall(r"CREATE TABLE.*?\);", sql_content, re.DOTALL | re.IGNORECASE)
+    # Updated regex to handle MySQL tables with ENGINE clause
+    tables = re.findall(r"CREATE TABLE.*?\)\s*[^;]*;", sql_content, re.DOTALL | re.IGNORECASE)
     return tables
 
 def map_sql_type_to_datatype(sql_type: str, engine: str) -> str:
     sql_type = sql_type.lower()
-    if any(t in sql_type for t in ["int", "serial", "bigint", "smallint"]):
+    
+    # Boolean detection - tinyint(1) is commonly used for booleans in MySQL
+    if "tinyint(1)" in sql_type or "boolean" in sql_type:
+        return "DataTypes.BOOLEAN"
+    
+    # Integer types
+    if any(t in sql_type for t in ["bigint", "int", "serial", "smallint"]):
         return "DataTypes.INTEGER"
+    
+    # Decimal/Float types
     if any(t in sql_type for t in ["decimal", "numeric", "real", "double", "float"]):
         return "DataTypes.DECIMAL"
-    if any(t in sql_type for t in ["text", "char", "varchar"]):
+    
+    # String types
+    if any(t in sql_type for t in ["text", "longtext", "char", "varchar"]):
         return "DataTypes.STRING"
-    if "boolean" in sql_type or sql_type.startswith("tinyint(1)"):
-        return "DataTypes.BOOLEAN"
-    if "date" in sql_type or "time" in sql_type:
+    
+    # Date/Time types
+    if any(t in sql_type for t in ["timestamp", "datetime", "date", "time"]):
         return "DataTypes.DATE"
+    
+    # JSON type
     if "json" in sql_type:
         return "DataTypes.JSON"
+    
+    # UUID type
     if "uuid" in sql_type:
         return "DataTypes.UUID"
+    
+    # Default to STRING for unknown types
     return "DataTypes.STRING"
 
 def parse_table_definition(table_sql: str, engine: str):
     lines = [l.strip().strip(",") for l in table_sql.splitlines()]
     header = lines[0]
-    match = re.search(r"CREATE TABLE\s+[`\"]?(\w+)[`\"]?", header, re.IGNORECASE)
+    # Handle 'CREATE TABLE IF NOT EXISTS' syntax
+    match = re.search(r"CREATE TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`\"]?(\w+)[`\"]?", header, re.IGNORECASE)
     table_name = match.group(1) if match else "unknown"
 
     columns = {}
@@ -84,14 +102,14 @@ def parse_table_definition(table_sql: str, engine: str):
             if m:
                 pk_fields.extend([f.strip().replace("`", "").replace("\"", "") for f in m[0].split(",")])
             continue
-        if line.upper().startswith("FOREIGN KEY"):
-            fk_field_match = re.search(r"\((.*?)\)", line)
-            fk_field = fk_field_match.group(1).replace("`", "").replace("\"", "") if fk_field_match else ""
-            ref_table_match = re.search(r"REFERENCES\s+[`\"]?(\w+)[`\"]?", line, re.IGNORECASE)
-            ref_table = ref_table_match.group(1) if ref_table_match else ""
-            ref_field_match = re.search(r"\((.*?)\)", line.split("REFERENCES")[1]) if "REFERENCES" in line else None
-            ref_field = ref_field_match.group(1).replace("`", "").replace("\"", "") if ref_field_match else ""
-            fks.append((fk_field, ref_table, ref_field))
+        if line.upper().startswith("CONSTRAINT") and "FOREIGN KEY" in line.upper():
+            # Parse CONSTRAINT name FOREIGN KEY (field) REFERENCES table (field)
+            fk_match = re.search(r"FOREIGN KEY\s*\(\s*[`\"]?(\w+)[`\"]?\s*\)\s*REFERENCES\s+[`\"]?(\w+)[`\"]?\s*\(\s*[`\"]?(\w+)[`\"]?\s*\)", line, re.IGNORECASE)
+            if fk_match:
+                fk_field = fk_match.group(1)
+                ref_table = fk_match.group(2)
+                ref_field = fk_match.group(3)
+                fks.append((fk_field, ref_table, ref_field))
             continue
         if line.upper().startswith("UNIQUE"):
             unique_match = re.search(r"\((.*?)\)", line)
@@ -101,6 +119,8 @@ def parse_table_definition(table_sql: str, engine: str):
             continue
         if line.upper().startswith("INDEX") or line.upper().startswith("KEY"):
             continue  # Skip index definitions for now
+        if line.upper().startswith("CONSTRAINT"):
+            continue  # Skip constraint definitions (already handled above)
 
         # Parse column definitions
         parts = line.split()
@@ -252,12 +272,12 @@ def generate_model_file(table_name, columns, pk_fields, fks, unique_constraints,
             if fk_field in one_to_one_fields:
                 assoc_code.append(f"""    {model_name}.belongsTo(models.{ref_model}, {{
       foreignKey: '{fk_field}',
-      as: '{model_name}{ref_model}',
+      as: '{camel_case(ref_table)}',
     }});""")
             else:
                 assoc_code.append(f"""    {model_name}.belongsTo(models.{ref_model}, {{
       foreignKey: '{fk_field}',
-      as: '{model_name}{ref_model}',
+      as: '{camel_case(ref_table)}',
     }});""")
 
     # Relaciones inversas (hasMany/hasOne)
@@ -291,13 +311,14 @@ def generate_model_file(table_name, columns, pk_fields, fks, unique_constraints,
                     # Relación 1:1 (hasOne)
                     assoc_code.append(f"""    {model_name}.hasOne(models.{src_model}, {{
       foreignKey: '{fk_field}',
-      as: '{model_name}{src_model}',
+      as: '{camel_case(src_table)}',
     }});""")
                 else:
                     # Relación 1:N (hasMany)
+                    table_plural = camel_case(src_table) + 's' if not camel_case(src_table).endswith('s') else camel_case(src_table)
                     assoc_code.append(f"""    {model_name}.hasMany(models.{src_model}, {{
       foreignKey: '{fk_field}',
-      as: '{model_name}{src_model}s',
+      as: '{table_plural}',
     }});""")
 
     # Configurar timestamps automáticamente

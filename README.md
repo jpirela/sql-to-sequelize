@@ -31,6 +31,7 @@ El script en Python debe:
   - Si es PK de texto, será `{ type: DataTypes.STRING, primaryKey: true }`.  
   - Los demás campos se mapean así:  
 
++------------------------------------------------|--------------------+
 | Tipo SQL                                       | Tipo Sequelize     |
 |------------------------------------------------|--------------------|
 | `integer`, `bigint`, `smallint`, `serial`      | `DataTypes.INTEGER`|
@@ -40,6 +41,7 @@ El script en Python debe:
 | `timestamp`, `date`, `time`                    | `DataTypes.DATE`   |
 | `json`, `jsonb`                                | `DataTypes.JSON`   |
 | `uuid`                                         | `DataTypes.UUID`   |
++------------------------------------------------|--------------------+
 
 - **Asociaciones (`associate`)**:
   - `belongsTo`: si la tabla contiene una clave foránea.  
@@ -315,11 +317,11 @@ Detecta automáticamente campos `created_at` y `updated_at` y habilita `timestam
 - ✅ Parseo de columnas y tipos de datos.  
 - ✅ Generación de claves primarias.  
 - ✅ Detección de claves foráneas y asociaciones (belongsTo / hasMany).  
-- ✅ **Detección automática de relaciones 1:1 (`hasOne`)**.  
-- ✅ **Detección de tablas de unión para `belongsToMany`**.  
-- ✅ **Soporte de índices únicos y constraints adicionales**.  
-- ✅ **Configuración de `timestamps` según convenciones (`created_at`, `updated_at`)**.  
-- ✅ **Exportación a un `index.js` central que importe todos los modelos**.
+- ✅ Detección automática de relaciones 1:1 (`hasOne`).  
+- ✅ Detección de tablas de unión para `belongsToMany`.  
+- ✅ Soporte de índices únicos y constraints adicionales.  
+- ✅ Configuración de `timestamps` según convenciones (`created_at`, `updated_at`).  
+- ✅ Exportación a un `index.js` central que importe todos los modelos.
 
 ---
 
@@ -468,8 +470,6 @@ await newUser.addUserRole(adminRole);
 3. **Asociaciones Automáticas**: Todas las relaciones (1:1, 1:N, N:N) se configuran automáticamente según el análisis del dump SQL.
 
 4. **Timestamps**: Si se detectan campos `created_at` y `updated_at`, se habilita automáticamente `timestamps: true`.
-
-5. **Instalación**: Se deben copiar en la raiz del proyecto las carpetas `config` y `api`.
 
 ---
 
